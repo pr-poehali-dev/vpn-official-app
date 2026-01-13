@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import InstallPrompt from '@/components/InstallPrompt';
 
 type VPNProfile = {
   id: string;
@@ -161,6 +162,7 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-background dark">
+      <InstallPrompt />
       <div className="container max-w-4xl mx-auto p-6 space-y-8">
         <div className="flex items-center justify-between animate-fade-in">
           <div className="flex items-center gap-3">

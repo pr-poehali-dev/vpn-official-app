@@ -7,6 +7,13 @@
     <meta name="description" content="DominoVPN — профессиональное VPN приложение с управлением SSH ключами для безопасного подключения"/>
     <meta name="author" content="DominoVPN"/>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="https://cdn.poehali.dev/projects/adbdf9f7-055f-43ad-8b44-73c6765486b5/files/5cffbc4b-84eb-477a-a272-50324a35cdb0.jpg">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DominoVPN">
+    <meta name="theme-color" content="#0EA5E9">
     <meta property="og:title" content="DominoVPN - Secure VPN">
     <meta property="og:description" content="Профессиональное VPN приложение с управлением SSH ключами и VPN конфигурациями">
     <meta property="og:image:width" content="4800">
@@ -24,6 +31,16 @@
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS COMMENT! -->
 
     <meta name="pp-name" value="vpn-official-app">
+    
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/service-worker.js')
+            .then(registration => console.log('SW registered:', registration))
+            .catch(err => console.log('SW registration failed:', err));
+        });
+      }
+    </script>
       <script src="https://cdn.poehali.dev/intertnal/js/inspector-min.js"></script>
   </head>
 
