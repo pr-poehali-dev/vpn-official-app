@@ -11,6 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 import InstallPrompt from '@/components/InstallPrompt';
+import QRExport from '@/components/QRExport';
+import QRImport from '@/components/QRImport';
+import SSHKeyGenerator from '@/components/SSHKeyGenerator';
+import SubscriptionBanner from '@/components/SubscriptionBanner';
 
 type VPNProfile = {
   id: string;
@@ -40,6 +44,16 @@ export default function Index() {
   ]);
   const [selectedProfile, setSelectedProfile] = useState<VPNProfile | null>(profiles[0]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isQRExportOpen, setIsQRExportOpen] = useState(false);
+  const [isQRImportOpen, setIsQRImportOpen] = useState(false);
+  const [isSSHGeneratorOpen, setIsSSHGeneratorOpen] = useState(false);
+  const [exportProfile, setExportProfile] = useState<VPNProfile | null>(null);
+  const [hasSubscription, setHasSubscription] = useState(false);
+  const [trialEndsAt, setTrialEndsAt] = useState<Date | null>(() => {
+    const trial = new Date();
+    trial.setDate(trial.getDate() + 30);
+    return trial;
+  });
   const [newProfile, setNewProfile] = useState({
     name: '',
     server: '',
@@ -138,6 +152,48 @@ export default function Index() {
     });
   };
 
+  const handleExportProfile = (profile: VPNProfile) => {
+    setExportProfile(profile);
+    setIsQRExportOpen(true);
+  };
+
+  const handleImportProfile = (profileData: any) => {
+    const newProfile: VPNProfile = {
+      id: Date.now().toString(),
+      name: profileData.name,
+      server: profileData.server,
+      port: profileData.port,
+      protocol: profileData.protocol,
+      sshKey: profileData.sshKey || '',
+      vpnConfig: profileData.vpnConfig,
+      createdAt: new Date()
+    };
+    setProfiles([...profiles, newProfile]);
+  };
+
+  const handleSSHKeysGenerated = (publicKey: string, privateKey: string) => {
+    setNewProfile({ ...newProfile, sshKey: privateKey });
+    toast({
+      title: 'Ключи добавлены',
+      description: 'SSH ключи добавлены в профиль. Не забудьте скопировать публичный ключ на сервер!'
+    });
+  };
+
+  const handleSubscribe = () => {
+    toast({
+      title: 'Оформление подписки',
+      description: 'Перенаправление на страницу оплаты...'
+    });
+    setTimeout(() => {
+      setHasSubscription(true);
+      setTrialEndsAt(null);
+      toast({
+        title: 'Подписка активна',
+        description: 'Добро пожаловать в DominoVPN Premium!'
+      });
+    }, 2000);
+  };
+
   const getStatusColor = () => {
     switch (status) {
       case 'connected':
@@ -163,6 +219,14 @@ export default function Index() {
   return (
     <div className="min-h-screen bg-background dark">
       <InstallPrompt />
+      <QRExport profile={exportProfile} open={isQRExportOpen} onOpenChange={setIsQRExportOpen} />
+      <QRImport open={isQRImportOpen} onOpenChange={setIsQRImportOpen} onImport={handleImportProfile} />
+      <SSHKeyGenerator 
+        open={isSSHGeneratorOpen} 
+        onOpenChange={setIsSSHGeneratorOpen} 
+        onKeysGenerated={handleSSHKeysGenerated}
+        hasSubscription={hasSubscription || (trialEndsAt !== null && trialEndsAt > new Date())}
+      />
       <div className="container max-w-4xl mx-auto p-6 space-y-8">
         <div className="flex items-center justify-between animate-fade-in">
           <div className="flex items-center gap-3">
@@ -171,12 +235,21 @@ export default function Index() {
             </div>
             <h1 className="text-3xl font-bold">DominoVPN</h1>
           </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="icon" className="rounded-xl">
-                <Icon name="Plus" size={20} />
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="rounded-xl"
+              onClick={() => setIsQRImportOpen(true)}
+            >
+              <Icon name="QrCode" size={20} />
+            </Button>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="icon" className="rounded-xl">
+                  <Icon name="Plus" size={20} />
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Новый VPN профиль</DialogTitle>
@@ -234,7 +307,18 @@ export default function Index() {
                 
                 <Tabs value={newProfile.protocol} className="w-full">
                   <TabsContent value="SSH" className="space-y-2">
-                    <Label htmlFor="sshKey">SSH приватный ключ</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="sshKey">SSH приватный ключ</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsSSHGeneratorOpen(true)}
+                      >
+                        <Icon name="Wand2" className="mr-2" size={14} />
+                        Сгенерировать
+                      </Button>
+                    </div>
                     <Textarea
                       id="sshKey"
                       placeholder="-----BEGIN RSA PRIVATE KEY-----&#10;MIIEpAIBAAKCAQ..."
@@ -323,6 +407,12 @@ export default function Index() {
           </CardContent>
         </Card>
 
+        <SubscriptionBanner 
+          hasSubscription={hasSubscription}
+          trialEndsAt={trialEndsAt}
+          onSubscribe={handleSubscribe}
+        />
+
         <div className="space-y-4 animate-fade-in">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-semibold">VPN Профили</h3>
@@ -368,6 +458,17 @@ export default function Index() {
                           Активен
                         </Badge>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleExportProfile(profile);
+                        }}
+                      >
+                        <Icon name="QrCode" size={16} />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
