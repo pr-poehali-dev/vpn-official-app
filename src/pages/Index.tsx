@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 
@@ -15,6 +17,8 @@ type VPNProfile = {
   server: string;
   port: number;
   sshKey: string;
+  vpnConfig?: string;
+  protocol: 'SSH' | 'OpenVPN' | 'WireGuard';
   createdAt: Date;
 };
 
@@ -28,6 +32,7 @@ export default function Index() {
       name: 'Офисный VPN',
       server: 'vpn.company.com',
       port: 22,
+      protocol: 'SSH',
       sshKey: '-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQ...',
       createdAt: new Date('2024-01-15')
     }
@@ -38,7 +43,9 @@ export default function Index() {
     name: '',
     server: '',
     port: 22,
-    sshKey: ''
+    protocol: 'SSH' as 'SSH' | 'OpenVPN' | 'WireGuard',
+    sshKey: '',
+    vpnConfig: ''
   });
   const { toast } = useToast();
 
@@ -71,10 +78,28 @@ export default function Index() {
   };
 
   const handleAddProfile = () => {
-    if (!newProfile.name || !newProfile.server || !newProfile.sshKey) {
+    if (!newProfile.name || !newProfile.server) {
       toast({
         title: 'Заполните все поля',
-        description: 'Все поля обязательны для создания профиля',
+        description: 'Название и адрес сервера обязательны',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (newProfile.protocol === 'SSH' && !newProfile.sshKey) {
+      toast({
+        title: 'SSH ключ обязателен',
+        description: 'Для SSH протокола необходим приватный ключ',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if ((newProfile.protocol === 'OpenVPN' || newProfile.protocol === 'WireGuard') && !newProfile.vpnConfig) {
+      toast({
+        title: 'Конфигурация обязательна',
+        description: `Для ${newProfile.protocol} необходим файл конфигурации`,
         variant: 'destructive'
       });
       return;
@@ -85,13 +110,15 @@ export default function Index() {
       name: newProfile.name,
       server: newProfile.server,
       port: newProfile.port,
+      protocol: newProfile.protocol,
       sshKey: newProfile.sshKey,
+      vpnConfig: newProfile.vpnConfig,
       createdAt: new Date()
     };
 
     setProfiles([...profiles, profile]);
     setIsAddDialogOpen(false);
-    setNewProfile({ name: '', server: '', port: 22, sshKey: '' });
+    setNewProfile({ name: '', server: '', port: 22, protocol: 'SSH', sshKey: '', vpnConfig: '' });
     toast({
       title: 'Профиль создан',
       description: `${profile.name} успешно добавлен`
@@ -140,7 +167,7 @@ export default function Index() {
             <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center">
               <Icon name="Shield" className="text-primary-foreground" size={24} />
             </div>
-            <h1 className="text-3xl font-bold">VPN Manager</h1>
+            <h1 className="text-3xl font-bold">DominoVPN</h1>
           </div>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
@@ -152,7 +179,7 @@ export default function Index() {
               <DialogHeader>
                 <DialogTitle>Новый VPN профиль</DialogTitle>
                 <DialogDescription>
-                  Добавьте новый профиль с SSH ключом для подключения
+                  Добавьте новый профиль с SSH ключом или VPN конфигурацией
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -164,6 +191,24 @@ export default function Index() {
                     value={newProfile.name}
                     onChange={(e) => setNewProfile({ ...newProfile, name: e.target.value })}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="protocol">Протокол</Label>
+                  <Select 
+                    value={newProfile.protocol} 
+                    onValueChange={(value: 'SSH' | 'OpenVPN' | 'WireGuard') => 
+                      setNewProfile({ ...newProfile, protocol: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите протокол" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="SSH">SSH</SelectItem>
+                      <SelectItem value="OpenVPN">OpenVPN</SelectItem>
+                      <SelectItem value="WireGuard">WireGuard</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="server">Адрес сервера</Label>
@@ -179,21 +224,46 @@ export default function Index() {
                   <Input
                     id="port"
                     type="number"
-                    placeholder="22"
+                    placeholder={newProfile.protocol === 'SSH' ? '22' : newProfile.protocol === 'OpenVPN' ? '1194' : '51820'}
                     value={newProfile.port}
                     onChange={(e) => setNewProfile({ ...newProfile, port: parseInt(e.target.value) || 22 })}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sshKey">SSH ключ</Label>
-                  <Textarea
-                    id="sshKey"
-                    placeholder="-----BEGIN RSA PRIVATE KEY-----&#10;MIIEpAIBAAKCAQ..."
-                    className="font-mono text-xs min-h-[120px]"
-                    value={newProfile.sshKey}
-                    onChange={(e) => setNewProfile({ ...newProfile, sshKey: e.target.value })}
-                  />
-                </div>
+                
+                <Tabs value={newProfile.protocol} className="w-full">
+                  <TabsContent value="SSH" className="space-y-2">
+                    <Label htmlFor="sshKey">SSH приватный ключ</Label>
+                    <Textarea
+                      id="sshKey"
+                      placeholder="-----BEGIN RSA PRIVATE KEY-----&#10;MIIEpAIBAAKCAQ..."
+                      className="font-mono text-xs min-h-[120px]"
+                      value={newProfile.sshKey}
+                      onChange={(e) => setNewProfile({ ...newProfile, sshKey: e.target.value })}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="OpenVPN" className="space-y-2">
+                    <Label htmlFor="vpnConfig">OpenVPN конфигурация (.ovpn)</Label>
+                    <Textarea
+                      id="vpnConfig"
+                      placeholder="client&#10;dev tun&#10;proto udp&#10;remote vpn.example.com 1194&#10;..."
+                      className="font-mono text-xs min-h-[120px]"
+                      value={newProfile.vpnConfig}
+                      onChange={(e) => setNewProfile({ ...newProfile, vpnConfig: e.target.value })}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="WireGuard" className="space-y-2">
+                    <Label htmlFor="vpnConfig">WireGuard конфигурация (.conf)</Label>
+                    <Textarea
+                      id="vpnConfig"
+                      placeholder="[Interface]&#10;PrivateKey = ...&#10;Address = 10.0.0.2/24&#10;&#10;[Peer]&#10;PublicKey = ...&#10;Endpoint = vpn.example.com:51820&#10;..."
+                      className="font-mono text-xs min-h-[120px]"
+                      value={newProfile.vpnConfig}
+                      onChange={(e) => setNewProfile({ ...newProfile, vpnConfig: e.target.value })}
+                    />
+                  </TabsContent>
+                </Tabs>
               </div>
               <Button onClick={handleAddProfile} className="w-full">
                 Создать профиль
@@ -276,6 +346,9 @@ export default function Index() {
                         {profile.name}
                       </CardTitle>
                       <CardDescription className="flex items-center gap-4 text-xs">
+                        <Badge variant="outline" className="gap-1">
+                          {profile.protocol}
+                        </Badge>
                         <span className="flex items-center gap-1">
                           <Icon name="Globe" size={14} />
                           {profile.server}
@@ -311,7 +384,10 @@ export default function Index() {
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Icon name="Key" size={14} />
                     <span className="font-mono truncate">
-                      {profile.sshKey.substring(0, 40)}...
+                      {profile.protocol === 'SSH' 
+                        ? profile.sshKey.substring(0, 40) + '...'
+                        : (profile.vpnConfig?.substring(0, 40) || 'Конфигурация') + '...'
+                      }
                     </span>
                   </div>
                 </CardContent>
